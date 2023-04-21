@@ -6,6 +6,8 @@ April 2023
 NZ and LJ
 """
 
+import math
+
 def dtw(P, Q):
     """Algorithm to find dtw and Eavg assignment; returns an array"""
 
