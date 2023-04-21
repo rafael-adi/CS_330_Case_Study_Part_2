@@ -1,1 +1,3 @@
-# CS_330_Case_Study_Part_2
+# CS 330: Case Study Part 2
+
+Authors: Nate Zelter
