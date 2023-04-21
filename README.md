@@ -1,3 +1,3 @@
 # CS 330: Case Study Part 2
 
-Authors: Nate Zelter, Lucas Josephy
+Authors: Nate Zelter, Lucas Josephy, Will Yun 
