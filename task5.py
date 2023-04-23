@@ -116,3 +116,5 @@ k = 4
 
 print(lloyds(data, k, 100))
 
+if __name__ == '__main__':
+    pass
