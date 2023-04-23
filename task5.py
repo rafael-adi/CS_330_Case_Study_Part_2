@@ -107,12 +107,16 @@ def lloyds(data, k, tmax=100):
 data = []
 with open('geolife-cars-upd8.csv', 'r') as f:
     reader = csv.reader(f)
+    next(reader)  # Skip the first row
     for row in reader:
-        data.append(row)
+        id = row[0]
+        x = float(row[1])
+        y = float(row[2])
+        data.append([id, x, y])
 
 k = 4
 
-
+print(data[:10])
 
 print(lloyds(data, k, 100))
 
