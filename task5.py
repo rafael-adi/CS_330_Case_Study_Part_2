@@ -10,9 +10,22 @@ import csv
 
 "Raf and Yunner"
 
+def make_dict(fname):
+   T = {}
+   counter = 0
+   with open(fname, newline='',) as f:
+       reader = csv.reader(f)
+       for row in reader:
+           if counter != 0:
+               if row[0] not in T:
+                   T[row[0]] = []
+               T[row[0]].append((row[1], row[2]))
+           counter += 1
 
+   return T
+
+"""
 def dtw(P, Q):
-    """Algorithm to find dtw and Eavg assignment; returns an array"""
 
     lenP = len(P)
     lenQ = len(Q)
@@ -103,7 +116,7 @@ def lloyds(data, k, tmax=100):
     return assignments, centroids
 
 
-## Loading in Data Set 
+## Loading in Data Set
 data = []
 with open('geolife-cars-upd8.csv', 'r') as f:
     reader = csv.reader(f)
@@ -119,6 +132,6 @@ k = 4
 print(data[:10])
 
 print(lloyds(data, k, 100))
-
+"""
 if __name__ == '__main__':
-    pass
+    print(make_dict("geolife-cars-upd8.csv"))
