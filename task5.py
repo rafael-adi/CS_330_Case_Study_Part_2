@@ -4,6 +4,7 @@ print("Hello world, task 5 here we go...")
 
 import numpy as np
 import math
+import random
 import csv
 
 
@@ -62,39 +63,44 @@ def dtw(P, Q):
     return Eavg[::-1]
 
 
-
-def lloyd_kmeans_pp(data, k, max_iter=100):
-    # Randomly choose first centroid from data points
-    centroids = [data[np.random.choice(len(data))]]
-    distances = np.zeros(len(data))
-    
-    # Choose remaining k-1 centroids using k-means++ seeding
-    for _ in range(k - 1):
-        # Compute distance between each data point and closest centroid
+def lloyds(data, k, tmax=100):
+    # Initialize centroids with k-means++
+    centroids = [data[0]]
+    print(centroids)
+    for i in range(1, k):
+        distances = np.zeros(len(data))
+        for j in range(len(data)):
+            print(centroids[-1], data[j])
+            dist, _ = dtw(centroids[-1], data[j])
+            distances[j] = dist
+        probabilities = distances / distances.sum()
+        cum_probabilities = probabilities.cumsum()
+        r = np.random.rand()
+        print("checkpoint 1")
+        for j, p in enumerate(cum_probabilities):
+            if r < p:
+                centroids.append(data[j])
+                break
+        print("checkpoint 2")
+    # Assign points to nearest centroid
+    assignments = np.zeros(len(data))
+    t = 0
+    while t < tmax:
+        t += 1
         for i in range(len(data)):
-            dist, _ = dtw(data[i][1:], centroids[-1][1:])
-            distances[i] = dist ** 2
-            
-        # Choose next centroid with probability proportional to square distance
-        next_centroid_idx = np.random.choice(len(data), p=distances / np.sum(distances))
-        centroids.append(data[next_centroid_idx])
-        
-    # Perform Lloyd's algorithm
-    for _ in range(max_iter):
-        # Assign each data point to the closest centroid
-        clusters = [[] for _ in range(k)]
-        for i in range(len(data)):
-            dists = [dtw(data[i][1:], c[1:])[0] for c in centroids]
-            closest_centroid_idx = np.argmin(dists)
-            clusters[closest_centroid_idx].append(data[i])
-        
-        # Recompute centroids as mean of points in each cluster
-        for i in range(k):
-            if clusters[i]:
-                centroids[i] = [clusters[i][j][1:] for j in range(len(clusters[i]))]
-                centroids[i] = np.mean(centroids[i], axis=0).tolist()
-        
-    return clusters, centroids
+            distances = np.zeros(k)
+            for j in range(k):
+                dist, _ = dtw(data[i], centroids[j])
+                distances[j] = dist
+            assignments[i] = np.argmin(distances)
+        print("checkpoint 3")
+        # Update centroids
+        for j in range(k):
+            centroid_points = data[assignments == j]
+            if len(centroid_points) > 0:
+                centroids[j] = centroid_points.mean(axis=0)
+        print("checkpoint 4")
+    return assignments, centroids
 
 
 ## Loading in Data Set 
@@ -106,5 +112,7 @@ with open('geolife-cars-upd8.csv', 'r') as f:
 
 k = 4
 
-print(lloyd_kmeans_pp(data, k, 100))
+
+
+print(lloyds(data, k, 100))
 
