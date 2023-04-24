@@ -23,32 +23,7 @@ def make_dict(fname):
    return T
 
 
-def random_partition(trajectory_set, k):
-    """need to change"""
-    # Create a randomized list of IDs based on the dictionary
-    ids = list(trajectory_set.keys())
-    random.shuffle(ids)
 
-    # Create a dictionary. Keys are groups in range(0, k-1). Values are array of trajectory IDs
-    k_groups = {}
-    group_size = len(ids) // k
-    start = 0
-    end = group_size
-    for group_number in range(k):
-        if group_number not in k_groups:
-            k_groups[group_number] = []
-        for i in range(start, end):
-            k_groups[group_number].append(ids[i])
-        start = end + 1
-        if start + group_size > len(ids):
-            end = len(ids) - 1
-        else:
-            end = start + group_size
-
-    return k_groups
-
-
-"""
 def dtw(P, Q):
     lenP = len(P)
     lenQ = len(Q)
@@ -89,62 +64,131 @@ def dtw(P, Q):
             Eavg.append([i, j - 1])
             j -= 1
     return Eavg[::-1]
-def lloyds(data, k, tmax=100):
-    # Initialize centroids with k-means++
-    centroids = [data[0]]
-    print(centroids)
-    for i in range(1, k):
-        distances = np.zeros(len(data))
-        for j in range(len(data)):
-            print(centroids[-1], data[j])
-            dist, _ = dtw(centroids[-1], data[j])
-            distances[j] = dist
-        probabilities = distances / distances.sum()
-        cum_probabilities = probabilities.cumsum()
-        r = np.random.rand()
-        print("checkpoint 1")
-        for j, p in enumerate(cum_probabilities):
-            if r < p:
-                centroids.append(data[j])
-                break
-        print("checkpoint 2")
-    # Assign points to nearest centroid
-    assignments = np.zeros(len(data))
-    t = 0
-    while t < tmax:
-        t += 1
-        for i in range(len(data)):
-            distances = np.zeros(k)
-            for j in range(k):
-                dist, _ = dtw(data[i], centroids[j])
-                distances[j] = dist
-            assignments[i] = np.argmin(distances)
-        print("checkpoint 3")
-        # Update centroids
-        for j in range(k):
-            centroid_points = data[assignments == j]
-            if len(centroid_points) > 0:
-                centroids[j] = centroid_points.mean(axis=0)
-        print("checkpoint 4")
-    return assignments, centroids
-## Loading in Data Set 
-## Loading in Data Set
-data = []
-with open('geolife-cars-upd8.csv', 'r') as f:
-    reader = csv.reader(f)
-    next(reader)  # Skip the first row
-    for row in reader:
-        id = row[0]
-        x = float(row[1])
-        y = float(row[2])
-        data.append([id, x, y])
-k = 4
-print(data[:10])
-print(lloyds(data, k, 100))
 
-"""
+def approach_2(points):
+    # Compute the length of the longest trajectory
+    #print(points)
+    max_len = max([len(point) for point in points])
+    # Initialize a matrix to store the points
+    coordinates = [[[0, 0] for _ in range(len(points))] for _ in range(
+        max_len)]
+    # Fill the matrix with the points from each trajectory
+    for i, point in enumerate(points):
+        for j, coordinate in enumerate(point):
+            coordinates[j][i] = coordinate
+    # Compute the average point for each time step
+    avg_points = [[sum(x) / len(x) for x in zip(*pt)] for pt in coordinates]
+    # Return the center trajectory as a sequence of points
+    #print(avg_points)
+    return avg_points
+
+
+def random_partition(dict_set, k):
+    """need to change"""
+    # Create a randomized list of IDs based on the dictionary
+    ids = list(dict_set.keys())
+    random.shuffle(ids)
+
+    # Create a dictionary. Keys are groups in range(0, k-1). Values are array of trajectory IDs
+    k_groups = {}
+    group_size = len(ids) // k
+    start = 0
+    end = group_size
+    for group_number in range(k):
+        if group_number not in k_groups:
+            k_groups[group_number] = []
+        for i in range(start, end):
+            k_groups[group_number].append(ids[i])
+        start = end + 1
+        if start + group_size > len(ids):
+            end = len(ids) - 1
+        else:
+            end = start + group_size
+
+    return k_groups
+
+
+def assign(trajs, centers):
+    print("made it to assign")
+    clusters = dict.fromkeys(centers, [])
+    # iterate through each traj P
+    for id, P in trajs.items():
+        min_dist, min_assign = math.inf, None
+        print("first for loop")
+        for center in centers:
+            print("second for loop")
+            Q = trajs[center]
+            # compute dist to center Q
+            dist = dtw(P, Q)[-1][-1]
+            print("distance: ", dist)
+            print("min_assign: ", min_assign)
+            if dist < min_dist:
+                min_dist = dist
+                min_assign = center
+                print("min assign: ", min_assign)
+        # assign P to closest cluster Q
+        clusters[min_assign].append(id)
+    
+    return clusters
+
+
+def careful_seed(traj, k):
+    return []
+
+def update(trajs, clusters):
+    new_center_ids = []
+    for center, cluster in clusters.items():
+        paths = [trajs[id] for id in cluster]
+        new_center_path = approach_2(paths)
+        trajs[len(new_center_ids)] = new_center_path
+        new_center_ids.append(len(new_center_ids))
+    
+    return trajs, new_center_ids
+
+def lloyds(trajs, k, t, seed):
+    # initialize centers
+    centers = random_seed(trajs, k) if seed == "random" else careful_seed(trajs, k)
+    clusters = assign(trajs, centers)
+    for iter in range(t):
+        print("############## ITER: ", iter, " ##############")
+        print("Finding new cluster centers...")
+        trajs, centers = update(trajs, clusters)
+        print("Updating cluster assignments...")
+        new_clusters = assign(trajs, centers)
+        if new_clusters == clusters:
+            break
+        else:
+            clusters = new_clusters
+        
+    return clusters
+
+def random_seed(trajs, k):
+    return random.sample(trajs.keys(), k=k)
+
+def get_trajectories(df):
+    dict = {}
+    for index, row in df.iterrows():
+        # print(index / len(df))
+        id, x, y = row[0], row[1], row[2]
+        if id not in dict:
+            dict[id] = [ (float(x), float(y)) ]
+        else:
+            dict[id].append( (float(x), float(y)) )
+    
+    return dict
+
+
+    
 
 if __name__ == '__main__':
     pass
+    #print(data[:10])
+    #print(lloyds(data, k, 100))
     d = make_dict("geolife-cars-upd8.csv")
-    print(random_partition(d, 4))
+    test1 = random_seed(d, 4)
+    test2 = random_partition(d, 4)
+    print("test 1: ", test1, "\n, \n")
+    print("test2 : ", test2)
+    #print(d[:100], "\n \n")
+    #print(get_trajectories())
+    #print(lloyds(d, 4, 100, random))
