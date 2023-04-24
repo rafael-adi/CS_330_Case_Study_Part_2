@@ -1,6 +1,7 @@
 print("Hello world, task 5 here we go...")
 ### Implementing Random Seed for Lloyd's algo 
 import numpy as np
+import pandas as pd
 import math
 import random
 import csv
@@ -10,31 +11,30 @@ import csv
 
 
 def make_dict(fname):
-   T = {}
-   counter = 0
-   with open(fname, newline='',) as f:
-       reader = csv.reader(f)
-       for row in reader:
-           if counter != 0:
-               if row[0] not in T:
-                   T[row[0]] = []
-               T[row[0]].append((float(row[1]), float(row[2])))
-           counter += 1
+    T = {}
+    counter = 0
+    with open(fname, newline='', ) as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if counter != 0:
+                if row[0] not in T:
+                    T[row[0]] = []
+                T[row[0]].append((float(row[1]), float(row[2])))
+            counter += 1
 
-   return T
-
+    return T
 
 
 def dtw(P, Q):
     lenP = len(P)
     lenQ = len(Q)
-    #Initializing first dp table that will store the size of the assignment between P & Q
-    memo = [[math.inf] * (lenQ+1) for _ in range(lenP + 1)]
+    # Initializing first dp table that will store the size of the assignment between P & Q
+    memo = [[math.inf] * (lenQ + 1) for _ in range(lenP + 1)]
     memo[0][0] = 0
-    #Initializing second dp table for averages
-    dp_avg = [[math.inf] * (lenQ+1) for _ in range(lenP + 1)]
+    # Initializing second dp table for averages
+    dp_avg = [[math.inf] * (lenQ + 1) for _ in range(lenP + 1)]
     dp_avg[0][0] = 0
-    #Creating the two tables that will be used to find path later
+    # Creating the two tables that will be used to find path later
     for i in range(1, lenP + 1):
         for j in range(1, lenQ + 1):
             distance = math.dist(P[i - 1], Q[j - 1])
@@ -48,7 +48,7 @@ def dtw(P, Q):
     Eavg = []
     i = lenP
     j = lenQ
-    #Reverse looping over dp_avg to add incdices to Eavg array (starting from bottom right corner)
+    # Reverse looping over dp_avg to add incdices to Eavg array (starting from bottom right corner)
     while i > 0 and j > 0:
         temp1 = dp_avg[i - 1][j - 1]
         temp2 = dp_avg[i - 1][j]
@@ -66,9 +66,10 @@ def dtw(P, Q):
             j -= 1
     return Eavg[::-1]
 
+
 def approach_2(points):
     # Compute the length of the longest trajectory
-    #print(points)
+    # print(points)
     max_len = max([len(point) for point in points])
     # Initialize a matrix to store the points
     coordinates = [[[0, 0] for _ in range(len(points))] for _ in range(
@@ -80,7 +81,7 @@ def approach_2(points):
     # Compute the average point for each time step
     avg_points = [[sum(x) / len(x) for x in zip(*pt)] for pt in coordinates]
     # Return the center trajectory as a sequence of points
-    #print(avg_points)
+    # print(avg_points)
     return avg_points
 
 
@@ -129,12 +130,13 @@ def assign(trajs, centers):
                 print("min assign: ", min_assign)
         # assign P to closest cluster Q
         clusters[min_assign].append(id)
-    
+
     return clusters
 
 
 def careful_seed(traj, k):
     return []
+
 
 def update(trajs, clusters):
     new_center_ids = []
@@ -143,8 +145,9 @@ def update(trajs, clusters):
         new_center_path = approach_2(paths)
         trajs[len(new_center_ids)] = new_center_path
         new_center_ids.append(len(new_center_ids))
-    
+
     return trajs, new_center_ids
+
 
 def lloyds(trajs, k, t, seed):
     # initialize centers
@@ -160,11 +163,13 @@ def lloyds(trajs, k, t, seed):
             break
         else:
             clusters = new_clusters
-        
+
     return clusters
+
 
 def random_seed(trajs, k):
     return random.sample(trajs.keys(), k=k)
+
 
 def get_trajectories(df):
     dict = {}
@@ -172,24 +177,31 @@ def get_trajectories(df):
         # print(index / len(df))
         id, x, y = row[0], row[1], row[2]
         if id not in dict:
-            dict[id] = [ (float(x), float(y)) ]
+            dict[id] = [(float(x), float(y))]
         else:
-            dict[id].append( (float(x), float(y)) )
-    
+            dict[id].append((float(x), float(y)))
+
     return dict
 
 
-    
+def get_data(path):
+    df = pd.read_csv(path)
+    df = df.drop(columns=["date"])  # need with smaller datasets
+    dict = get_trajectories(df)
+
+    return dict
+
+
 
 if __name__ == '__main__':
     pass
-    #print(data[:10])
-    #print(lloyds(data, k, 100))
+    # print(data[:10])
+    # print(lloyds(data, k, 100))
     d = make_dict("geolife-cars-upd8.csv")
     test1 = random_seed(d, 4)
     test2 = random_partition(d, 4)
     print("test 1: ", test1, "\n, \n")
     print("test2 : ", test2)
-    #print(d[:100], "\n \n")
-    #print(get_trajectories())
-    #print(lloyds(d, 4, 100, random))
+    # print(d[:100], "\n \n")
+    # print(get_trajectories())
+    # print(lloyds(d, 4, 100, random))
