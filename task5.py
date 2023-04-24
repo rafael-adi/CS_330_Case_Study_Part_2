@@ -17,13 +17,39 @@ def make_dict(fname):
            if counter != 0:
                if row[0] not in T:
                    T[row[0]] = []
-               T[row[0]].append((row[1], row[2]))
+               T[row[0]].append((float(row[1]), float(row[2])))
            counter += 1
 
    return T
 
+
+def random_partition(trajectory_set, k):
+    """need to change"""
+    # Create a randomized list of IDs based on the dictionary
+    ids = list(trajectory_set.keys())
+    random.shuffle(ids)
+
+    # Create a dictionary. Keys are groups in range(0, k-1). Values are array of trajectory IDs
+    k_groups = {}
+    group_size = len(ids) // k
+    start = 0
+    end = group_size
+    for group_number in range(k):
+        if group_number not in k_groups:
+            k_groups[group_number] = []
+        for i in range(start, end):
+            k_groups[group_number].append(ids[i])
+        start = end + 1
+        if start + group_size > len(ids):
+            end = len(ids) - 1
+        else:
+            end = start + group_size
+
+    return k_groups
+
+
+"""
 def dtw(P, Q):
-    """Algorithm to find dtw and Eavg assignment; returns an array"""
     lenP = len(P)
     lenQ = len(Q)
     #Initializing first dp table that will store the size of the assignment between P & Q
@@ -116,8 +142,9 @@ k = 4
 print(data[:10])
 print(lloyds(data, k, 100))
 
-
+"""
 
 if __name__ == '__main__':
     pass
-    print(make_dict("geolife-cars-upd8.csv"))
+    d = make_dict("geolife-cars-upd8.csv")
+    print(random_partition(d, 4))
