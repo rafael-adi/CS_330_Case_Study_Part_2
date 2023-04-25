@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 import math
 
 
@@ -168,7 +169,7 @@ def main():
     filename = 'geolife-cars-ten-percent.csv'
     df = pd.read_csv(filename)
 
-    # -- gather trajectories
+    # -- gather all trajectories in data set
     df.sort_values(by=["id_", "date"], inplace=True)
     trajectories = {}   
     for index, row in df.iterrows():
@@ -182,34 +183,60 @@ def main():
         
         # trajectories[id].append((x, y, timestamp)) # with timestamps
         trajectories[id].append((x, y)) # without timestamps
+
+
+    # -- gather important trajectory ids
+    TS = {}
+    for id in trajectories.keys():
+        if id in IDS:
+            TS[id] = trajectories[id]
     
+    # print(TS)
 
-
-    ids = list(trajectories.keys())
-    P_id, Q_id, R_id = ids[4], ids[7], ids[2] # three random sample trajectories
-    P, Q, R = trajectories[P_id], trajectories[Q_id], trajectories[R_id]
-    
-
-    """   
-    # -- compute DTW distance between P and Q
-    dtw_distance, path = dtw_nate(P, Q)
-
-
-    # -- contrsuct centroid path
-    aligned_traj = []
-    for i, j in path:
-        aligned_traj.append((P[i][0], Q[j][1]))
-
+    # -- visualize trajectories
     fig, ax = plt.subplots()
-    ax.plot([p[0] for p in P], [p[1] for p in P], c="black", label="P")
-    ax.plot([q[0] for q in Q], [q[1] for q in Q], c="blue", label="Q") 
-    ax.plot([t[0] for t in aligned_traj], [t[1] for t in aligned_traj], 'r-', label='DTW')
+    for id in TS.keys():
+        ax.plot([p[0] for p in TS[id]], [p[1] for p in TS[id]], label=id)
     ax.legend()
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_title("Trajectories P and Q")
+    ax.set_title("Trajectories for important IDs")
+    # plt.show()
+
+    # -- gather x_min and x_max for linspace bounds
+    x_min, x_max = math.inf, -math.inf
+    for id in TS.keys():
+        for p in TS[id]:
+            if p[0] < x_min:
+                x_min = p[0]
+            if p[0] > x_max:
+                x_max = p[0]
+
+    print(x_min, x_max)
+    # -8.878138, 22.895032
+
+    # -- make linspace for x axis
+    n_ticks = 100
+    x_ticks = np.linspace(x_min, x_max, n_ticks)    
+    y_values = np.zeros((len(TS), n_ticks))
+    for i, traj in enumerate(TS):
+        # Separate x and y values from the trajectory
+        x_vals = np.array([p[0] for p in TS[traj]])
+        y_vals = np.array([p[1] for p in TS[traj]])
+        
+        # Use linear interpolation to find y values at the x ticks
+        interp_func = interp1d(x_vals, y_vals, kind='linear', fill_value='extrapolate')
+        y_values[i] = interp_func(x_ticks)
+    
+    # Average the y values across all trajectories at each x tick to construct the center trajectory
+    center_y = np.mean(y_values, axis=0)
+    
+    # Construct the center trajectory as a list of (x, y) coordinate tuples
+    center_traj = [(x_ticks[i], center_y[i]) for i in range(n_ticks)]
+    
+    # print(center_traj)
+    ax.plot([p[0] for p in center_traj], [p[1] for p in center_traj], linestyle='--', label='center_traj')
     plt.show()
-    """
 
 
 if __name__ == "__main__":
