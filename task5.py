@@ -97,11 +97,37 @@ def make_dict(fname):
 
 
 def dtw(P, Q):
-    return
+    lenP = len(P)
+    lenQ = len(Q)
 
+    memo = [[math.inf] * (lenQ+1) for _ in range(lenP + 1)]
+    memo[0][0] = 0
+    for i in range(1, lenP + 1):
+        for j in range(1, lenQ + 1):
+            euc = euc_dist(P[i - 1], Q[j - 1])
+            temp1 = memo[i - 1][j]
+            temp2 = memo[i - 1][j - 1]
+            temp3 =  memo[i][j - 1]
+            memo[i][j] = euc + min(temp1, temp2, temp3)
+
+    return memo[lenP][lenQ]
 
 def approach_2(points):
-    return
+    # Compute the length of the longest trajectory
+    #print(points)
+    max_len = max([len(point) for point in points])
+    # Initialize a matrix to store the points
+    coordinates = [[[0, 0] for _ in range(len(points))] for _ in range(
+        max_len)]
+    # Fill the matrix with the points from each trajectory
+    for i, point in enumerate(points):
+        for j, coordinate in enumerate(point):
+            coordinates[j][i] = coordinate
+    # Compute the average point for each time step
+    avg_points = [[sum(x) / len(x) for x in zip(*pt)] for pt in coordinates]
+    # Return the center trajectory as a sequence of points
+    #print(avg_points)
+    return avg_points
 
 
 def random_seeding(trajectories, k):
@@ -265,7 +291,7 @@ def finding_random_seed_costs():
     return random_seed_costs
 
 def finding_proposed_seed_costs():
-    max_iterations = 100
+    max_iterations = 20
     proposed_seed_costs = {}
     trajectories = make_dict("geolife-cars-upd8.csv")
 
@@ -326,4 +352,9 @@ def plot_proposed(costs_proposed):
 
 
 if __name__ == '__main__':
-    pass
+    trajectories = make_dict("geolife-cars-upd8.csv")
+    k = 4
+    max_iterations = 5
+    seed = 'r'
+    print(lloyds_algorithm(trajectories, k, max_iterations, seed))
+    #print(plot_random(finding_random_seed_costs()))
