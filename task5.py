@@ -125,6 +125,7 @@ def random_seeding(trajectories, k):
             e = s + size
 
     return groups
+
 """
 def closest_centroid(point, centroids):
     distances = [euc_dist(point, centroid) for centroid in centroids]
@@ -159,158 +160,170 @@ def proposed_seeding(trajectories, k):
 
     return centroids
 
-
 def lloyds_algorithm(trajectories, k, max_iterations, seed):
-    k_set_ids = {}
+    #  trajectories is a dictionary w key as id and value as points
+    #  k is the number of clusters
+    #  max_iterations is the maximum times the algorithm will run
+    #  seed is the type of seeding algorithm (random or proposed)
 
-    if (seed == "r"):
-        k_set_ids = random_seeding(trajectories, k)
-    elif (seed == "p"):
-        k_set_ids = proposed_seeding(trajectories, k)
+    if (seed == 'r'):
+        k_ids = random_seeding(trajectories, k)
+    else:
+        k_ids = proposed_seeding(trajectories, k)
 
     for i in range(max_iterations):
-        new_k_set = {}
-        centers = {}
+        new_set = {}
+        cluster_centers = {}
 
         for group in range(0, k):
-            k_group_trajectories = []
-            for each_id in k_set_ids[group]:
-                k_group_trajectories.append(trajectories[each_id])
-            centers[group] = approach_2(k_group_trajectories)
+            trajectory_groups = []
+            for id in k_ids[group]:
+                trajectory_groups.append(trajectories[id])
+            cluster_centers[group] = approach_2(trajectory_groups)
 
-        for traj_id in trajectories.keys():
-            min_dist = float('inf')
-            min_center = 0
-            for center in centers.keys():
-                dist = dtw(trajectories[traj_id], centers[center])
-                if dist < min_dist:
-                    min_dist = dist
-                    min_center = center
-            if min_center not in new_k_set:
-                new_k_set[min_center] = []
-            new_k_set[min_center].append(traj_id)
+        for id in trajectories.keys():
+            final_center = 0
+            final_dist = float('inf')
 
-        difference = False
-        for group in range(0, k):
-            new_list = sorted(new_k_set[group])
-            old_list = sorted(k_set_ids[group])
-            if len(new_list) == len(old_list):
-                for i in range(len(new_list)):
-                    if new_list[i] != old_list[i]:
-                        difference = True
+            for c_c in cluster_centers.keys():
+                temp_dist = dtw(trajectories[id], cluster_centers[c_c])
+                if temp_dist < final_dist:
+                    final_dist = temp_dist
+                    final_center = c_c
+
+            if final_center not in new_set:
+                new_set[final_center] = []
+
+            new_set[final_center].append(id)
+
+        boolean = False
+        for g in range(0, k):
+            new_list = sorted(new_set[g])
+            old_list = sorted(k_ids[g])
+            if len(old_list) == len(new_list):
+                for i in range(len(old_list)):
+                    if old_list[i] != new_list[i]:
+                        boolean = True
             else:
-                difference = True
+                boolean = True
 
-        if difference == False:
+        if boolean == False:
             break
 
-    return k_set_ids, centers
+    return k_ids, cluster_centers
 
-# Inputs are the same as Lloyd's algorithm
-def get_cost(trajectory_set, k, max_iterations, seed_type):
-    k_set_ids, centers = lloyds_algorithm(trajectory_set, k, max_iterations, seed_type)
+
+def find_cost(trajectories, k, max_iterations, seed):
+    k_ids, centers = lloyds_algorithm(trajectories, k, max_iterations, seed)
 
     cost = 0
-    for group in k_set_ids.keys():  # keys are the group numbers, values are array of trajectory IDs
-        for traj_id in group:
-            cost = cost + dist(trajectory_set[traj_id], centers[group])
+    for id_group in k_ids.keys():
+        for trajectory in id_group:
+            cost = cost + dist(trajectories[trajectory], centers[id_group])
     return cost
 
-def finding_costs_random():
+def finding_random_seed_costs():
     max_iterations = 100
-    costs_random = {}
+    random_seed_costs = {}
     trajectories = make_dict("geolife-cars-upd8.csv")
 
-    costs_random_4 = []
+    costs_4 = []
     for i in range(3):
-        costs_random_4.append(get_cost(trajectories, 4, max_iterations, 'r'))
+        costs_4.append(find_cost(trajectories, 4, max_iterations, 'r'))
 
-    costs_random[4]/(costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+    numer_4 = costs_4[0] + costs_4[1] + costs_4[2]
+    random_seed_costs[4] = numer_4 / 3
 
-    costs_random_6 = []
+    costs_6 = []
     for i in range(3):
-        costs_random_6.append(get_cost(trajectories, 6, max_iterations, 'r'))
+        costs_6.append(find_cost(trajectories, 6, max_iterations, 'r'))
 
-    costs_random[6] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+    numer_6 = costs_6[0] + costs_6[1] + costs_6[2]
+    random_seed_costs[6] = numer_6 / 3
 
-    costs_random_8 = []
+    costs_8 = []
     for i in range(3):
-        costs_random_8.append(get_cost(trajectories, 8, max_iterations, 'r'))
+        costs_8.append(find_cost(trajectories, 8, max_iterations, 'r'))
 
-    costs_random[8] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+    numer_8 = costs_8[0] + costs_8[1] + costs_8[2]
+    random_seed_costs[8] = numer_8 / 3
 
-    costs_random_10 = []
+    costs_10 = []
     for i in range(3):
-        costs_random_10.append(get_cost(trajectories, 10, max_iterations, 'r'))
+        costs_10.append(find_cost(trajectories, 10, max_iterations, 'r'))
 
-    costs_random[10] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+    numer_10 = costs_10[0] + costs_10[1] + costs_10[2]
+    random_seed_costs[10] = numer_10 / 3
 
-    costs_random_12 = []
+    costs_12 = []
     for i in range(3):
-        costs_random_12.append(get_cost(trajectories, 12, max_iterations, 'r'))
+        costs_12.append(find_cost(trajectories, 12, max_iterations, 'r'))
 
-    costs_random[12] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+    numer_12 = costs_12[0] + costs_12[1] + costs_12[2]
+    random_seed_costs[12] = numer_12 / 3
 
-    return costs_random
+    return random_seed_costs
 
-def finding_costs_proposed():
+def finding_proposed_seed_costs():
     max_iterations = 100
-    costs_proposed = {}
+    proposed_seed_costs = {}
     trajectories = make_dict("geolife-cars-upd8.csv")
 
-    costs_proposed_4 = []
+    costs_4 = []
     for i in range(3):
-        costs_proposed_4.append(get_cost(trajectories, 4, max_iterations, 'r'))
+        costs_4.append(find_cost(trajectories, 4, max_iterations, 'p'))
 
-    costs_proposed[4] / (costs_proposed_4[0] + costs_proposed_4[1] + costs_proposed_4[2]) / 3
+    numer_4 = costs_4[0] + costs_4[1] + costs_4[2]
+    proposed_seed_costs[4] = numer_4 / 3
 
-    costs_proposed_6 = []
+    costs_6 = []
     for i in range(3):
-        costs_proposed_6.append(get_cost(trajectories, 6, max_iterations, 'r'))
+        costs_6.append(find_cost(trajectories, 6, max_iterations, 'p'))
 
-    costs_proposed[6] / (costs_proposed_6[0] + costs_proposed_6[1] + costs_proposed_6[2]) / 3
+    numer_6 = costs_6[0] + costs_6[1] + costs_6[2]
+    proposed_seed_costs[6] = numer_6 / 3
 
-    costs_proposed_8 = []
+    costs_8 = []
     for i in range(3):
-        costs_proposed_8.append(get_cost(trajectories, 8, max_iterations, 'r'))
+        costs_8.append(find_cost(trajectories, 8, max_iterations, 'p'))
 
-    costs_proposed[8] / (costs_proposed_8[0] + costs_proposed_8[1] + costs_proposed_8[2]) / 3
+    numer_8 = costs_8[0] + costs_8[1] + costs_8[2]
+    proposed_seed_costs[8] = numer_8 / 3
 
-    costs_proposed_10 = []
+    costs_10 = []
     for i in range(3):
-        costs_proposed_10.append(get_cost(trajectories, 10, max_iterations, 'r'))
+        costs_10.append(find_cost(trajectories, 10, max_iterations, 'p'))
 
-    costs_proposed[10] / (costs_proposed_10[0] + costs_proposed_10[1] + costs_proposed_10[2]) / 3
+    numer_10 = costs_10[0] + costs_10[1] + costs_10[2]
+    proposed_seed_costs[10] = numer_10 / 3
 
-    costs_proposed_12 = []
+    costs_12 = []
     for i in range(3):
-        costs_proposed_12.append(get_cost(trajectories, 12, max_iterations, 'r'))
+        costs_12.append(find_cost(trajectories, 12, max_iterations, 'p'))
 
-    costs_proposed[12] / (costs_proposed_12[0] + costs_proposed_12[1] + costs_proposed_12[2]) / 3
+    numer_12 = costs_12[0] + costs_12[1] + costs_12[2]
+    proposed_seed_costs[12] = numer_12 / 3
 
-    return costs_proposed
+    return proposed_seed_costs
 
 def plot_random(costs_random):
-    random_x = list(costs_random.keys())
-    random_y = list(costs_random.values())
-    plt.plot(random_x, random_y)
-    plt.xlabel('K Value')
-    plt.ylabel('Average Cost at K')
-    plt.title('Cost of Lloyds Algorithm with Random Seeding at Different Values of K')
+    x = list(costs_random.keys())
+    y = list(costs_random.values())
+    plt.plot(x, y)
+    plt.xlabel('K')
+    plt.ylabel('AVG Cost at K')
+    plt.title('Cost of Lloyds with Random Seeding')
     plt.show()
 
 def plot_proposed(costs_proposed):
-    random_x = list(costs_proposed.keys())
-    random_y = list(costs_proposed.values())
-    plt.plot(random_x, random_y)
+    x = list(costs_proposed.keys())
+    y = list(costs_proposed.values())
+    plt.plot(x, y)
     plt.xlabel('K Value')
     plt.ylabel('Average Cost at K')
-    plt.title('Cost of Lloyds Algorithm with Updated Seeding at Different Values of K')
+    plt.title('Cost of Lloyds with Proposed Seeding')
     plt.show()
 
 
 if __name__ == '__main__':
-    d = make_dict("geolife-cars-upd8.csv")
-    test2 = random_seeding(d, 4)
-    max_iterations = 100
-    get_cost(test2, 4, max_iterations, 'r')
+    pass
