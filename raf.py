@@ -141,6 +141,53 @@ def lloyds(trajs, k, t, seed):
 
     return clusters
 
+def lloyd_algorithm(trajectories, k, max_iterations, runs, random_seed=True):
+    cost_matrix = [[None for _ in range(k)] for _ in range(runs)]
+    #print("runs")
+    #print(runs)
+    for r in range(runs):
+        if random_seed:
+            clusters = [dict() for _ in range(k)]
+            for id,trajectory in trajectories.items():
+                rand_index = random.randint(0,k-1)
+                clusters[rand_index][id] = trajectory
+        #else:
+            #clusters = seeded_clusters(trajectories, k, N)
+
+        centers = [approach_2(cluster.values()) for cluster in clusters]
+
+        costs = [0 for _ in range(max_iterations)]
+        for j in range(max_iterations):
+                print("in llyod")
+                previous_centers = centers
+                clusters = [dict() for _ in range(k)]
+                for id, trajectory in trajectories.items():
+                    print("in for in lloyd")
+                    distances = [(dtw(trajectory, center), i) for i, center in
+                                enumerate(centers)]
+                    print(distances)
+                    new_cluster = min(distances)[1]
+                    print(new_cluster)
+                    costs[j] += min(distances)[0]
+                    print(min(distances)[0])
+                    clusters[new_cluster][id] = trajectory
+                    print(clusters)
+                    print("here")
+                # If a cluster is empty, keep the previous center
+                #new_centers[j]=list_centers[j]
+                else:
+                    for c in range(len(clusters)):
+                        if len(clusters[c]) != 0: #we wont pick a new center
+                            centers[c] = approach_2(clusters[c].values())
+                #cost_matrix[r] = [cost for cost in costs]
+                if previous_centers == centers:
+                    break;
+    print("cost[k-1]")
+    #print(costs[max_iterations-1])
+    return costs[max_iterations-1]
+
+    #return clusters, centers
+
 
 def d(q, e):
     """
@@ -217,14 +264,15 @@ if __name__ == "__main__":
     # hyperparams
     file = "geolife-cars-upd8.csv"  # "geolife-cars-upd8.csv"
     path = os.path.join(file)
-    k = 5
+    k = 10
     t = 10
     # read in trajectories
     trajs = get_data(path)
     # simplify trajectories
     simp_trajs = simplify_trajectories(trajs)
     # run lloyds
-    clusters = lloyds(simp_trajs, k, t, seed="random")
+    #clusters = lloyds(simp_trajs, k, t, seed="random")
+    clusters = lloyd_algorithm(simp_trajs, 4, 10, True)
     print(clusters)
 
 
