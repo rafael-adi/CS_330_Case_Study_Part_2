@@ -2,9 +2,9 @@ import pandas as pd
 import math as math
 import os
 import random
-import tqdm
 import matplotlib.pyplot as plt
 
+### Dtw function 
 def dtw(P, Q):
     lenP = len(P)
     lenQ = len(Q)
@@ -46,6 +46,22 @@ def dtw(P, Q):
             j -= 1
     return Eavg[::-1]
 
+### Distance Formula for Cost Function 
+def euc_distance(p1,p2):
+    return math.sqrt(((p1[0]-p2[0])**2) + ((p1[1]-p2[1])**2))
+
+# Using this formula from: https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+def distance(q,e):
+    '''if q[0] < e[0][0]:
+       return euc_distance(q,e[0])
+    elif q[0] > e[1][0]:
+       return euc_distance(q,e[1])
+    else:'''
+    top = abs(((e[1][0] - e[0][0]) * (e[0][1] - q[1])) - ((e[0][0] - q[0]) * (e[1][1] - e[0][1])))
+    bottom = euc_distance(e[0],e[1])
+    return top/bottom
+
+
 def approach_2(points):
     # Compute the length of the longest trajectory
     #print(points)
@@ -84,13 +100,11 @@ def get_data(path):
     return dict
 
 
-
-
 ### Clustering
 def random_seed(trajs, k):
     return random.sample(trajs.keys(), k=k)
 
-
+### Need proposed seeding method 
 def careful_seed(traj, k):
     return []
 
@@ -98,7 +112,7 @@ def careful_seed(traj, k):
 def assign(trajs, centers):
     clusters = dict.fromkeys(centers, [])
     # iterate through each traj P
-    for id, P in tqdm.tqdm(trajs.items()):
+    for id, P in trajs.items():
         min_dist, min_assign = math.inf, None
         for center in centers:
             Q = trajs[center]
@@ -115,7 +129,7 @@ def assign(trajs, centers):
 
 def update(trajs, clusters):
     new_center_ids = []
-    for center, cluster in tqdm.tqdm(clusters.items()):
+    for center, cluster in clusters.items():
         paths = [trajs[id] for id in cluster]
         new_center_path = approach_2(paths)
         trajs[len(new_center_ids)] = new_center_path
@@ -141,53 +155,11 @@ def lloyds(trajs, k, t, seed):
 
     return clusters
 
-def lloyd_algorithm(trajectories, k, max_iterations, runs, random_seed=True):
-    cost_matrix = [[None for _ in range(k)] for _ in range(runs)]
-    #print("runs")
-    #print(runs)
-    for r in range(runs):
-        if random_seed:
-            clusters = [dict() for _ in range(k)]
-            for id,trajectory in trajectories.items():
-                rand_index = random.randint(0,k-1)
-                clusters[rand_index][id] = trajectory
-        #else:
-            #clusters = seeded_clusters(trajectories, k, N)
+#Inputs are the same as Lloyd's algorithm
+### Need some sort of cost function 
 
-        centers = [approach_2(cluster.values()) for cluster in clusters]
 
-        costs = [0 for _ in range(max_iterations)]
-        for j in range(max_iterations):
-                print("in llyod")
-                previous_centers = centers
-                clusters = [dict() for _ in range(k)]
-                for id, trajectory in trajectories.items():
-                    print("in for in lloyd")
-                    distances = [(dtw(trajectory, center), i) for i, center in
-                                enumerate(centers)]
-                    print(distances)
-                    new_cluster = min(distances)[1]
-                    print(new_cluster)
-                    costs[j] += min(distances)[0]
-                    print(min(distances)[0])
-                    clusters[new_cluster][id] = trajectory
-                    print(clusters)
-                    print("here")
-                # If a cluster is empty, keep the previous center
-                #new_centers[j]=list_centers[j]
-                else:
-                    for c in range(len(clusters)):
-                        if len(clusters[c]) != 0: #we wont pick a new center
-                            centers[c] = approach_2(clusters[c].values())
-                #cost_matrix[r] = [cost for cost in costs]
-                if previous_centers == centers:
-                    break;
-    print("cost[k-1]")
-    #print(costs[max_iterations-1])
-    return costs[max_iterations-1]
-
-    #return clusters, centers
-
+#### From Task 2 to speed up runtime 
 
 def d(q, e):
     """
@@ -250,6 +222,7 @@ def greedy(T, ep):
 
     return traj
 
+### To speed up runtime 
 def simplify_trajectories(dict):
     e = 0.3  # maximum error value for trajectory simplification
     for key in dict.keys():
@@ -257,22 +230,27 @@ def simplify_trajectories(dict):
         dict[key] = ts
     return dict
 
+#Cost of clustering k = 4, Proposed seeding
 
 
+
+costs_random = {}
 
 if __name__ == "__main__":
     # hyperparams
     file = "geolife-cars-upd8.csv"  # "geolife-cars-upd8.csv"
     path = os.path.join(file)
-    k = 10
-    t = 10
+    k = 4
+    t = 100
     # read in trajectories
     trajs = get_data(path)
     # simplify trajectories
     simp_trajs = simplify_trajectories(trajs)
     # run lloyds
-    #clusters = lloyds(simp_trajs, k, t, seed="random")
-    clusters = lloyd_algorithm(simp_trajs, 4, 10, True)
+    clusters = lloyds(simp_trajs, k, t, seed="random")
     print(clusters)
+    ### Need plot 
+
+    
 
 
