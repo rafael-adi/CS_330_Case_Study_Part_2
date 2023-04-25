@@ -11,62 +11,75 @@ import itertools
 "Raf and Yunner"
 "Retest"
 
-def euc_distance(p1,p2):
-    return math.sqrt(((p1[0]-p2[0])**2) + ((p1[1]-p2[1])**2))
+def euc_dist(P,Q):
+    return math.sqrt(((P[0]-Q[0])**2) + ((P[1]-Q[1])**2))
 
-# Using this formula from: https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-def distance(q,e):
-    '''if q[0] < e[0][0]:
-       return euc_distance(q,e[0])
-    elif q[0] > e[1][0]:
-       return euc_distance(q,e[1])
-    else:'''
-    top = abs(((e[1][0] - e[0][0]) * (e[0][1] - q[1])) - ((e[0][0] - q[0]) * (e[1][1] - e[0][1])))
-    bottom = euc_distance(e[0],e[1])
-    return top/bottom
+def dist(P,Q):
+    numer = abs(((Q[1][0] - Q[0][0]) * (Q[0][1] - P[1])) - ((Q[0][0] - P[0]) * (Q[1][1] - Q[0][1])))
+    euclidian = euc_dist(Q[0],Q[1])
+    return numer/euclidian
 
 
+def d(q, e):
+    """
+      Compute the distance between a point q and a segment e
+    """
+    a = e[0]
+    b = e[1]
+    ax = a[0]
+    ay = a[1]
+    bx = b[0]
+    by = b[1]
+    qx = q[0]
+    qy = q[1]
 
-### T is a list of points of the form [(x1,y1) ... (xn,yn)]
+    # vector ab
+    ab_x = bx - ax
+    ab_y = by - ay
 
-def trajectory_simplification(T, epsilon):
-    # get the start and end points
-    start_index = 0
-    end_index = len(T) - 1
-    dist_max = 0
-    index_max = 0
+    # vector aq
+    aq_x = qx - ax
+    aq_y = qy - ay
 
-    for i in range(start_index + 1, end_index):
-        edge = (T[start_index],T[end_index])
-        dist = distance(T[i],edge)
+    # compute dot product of ab and aq
+    dp = (ab_x * aq_x) + (ab_y * aq_y)
+    abLen = abs(math.sqrt((ax - bx) ** 2 + (ay - by) ** 2))
+    q_to_AB = dp / (abLen ** 2)
 
-        if dist > dist_max:
-            dist_max = dist
-            index_max = i
+    if (q_to_AB >= 1):  # closest point is B
+        return abs(math.sqrt((qx - bx) ** 2 + (qy - by) ** 2))
 
-    result = []
-    if dist_max > epsilon:
-        out_left = trajectory_simplification(T[:index_max+1], epsilon)
-        result_left = []
+    elif (q_to_AB <= 0):  # closest point is A
+        return abs(math.sqrt((qx - ax) ** 2 + (qy - ay) ** 2))
 
-        for point in out_left:
-            if point not in result:
-                result_left.append(point)
-        result += result_left
+    else:  # closest point is in the middle of line segment e, let f be that point
+        fx = (ab_x * q_to_AB) + ax
+        fy = (ab_y * q_to_AB) + ay
+        return abs(math.sqrt((qx - fx) ** 2 + (qy - fy) ** 2))
 
-        out_right = trajectory_simplification(T[index_max:], epsilon)
-        result_right = []
 
-        for point in out_right:
-            if point not in result:
-                result_right.append(point)
-        result += result_right
+def greedy(T, ep):
+    """
+      Implement the greedy algorithm TS-greedy(T,ε) to compute an ε-simplification of T.
 
-    else:
-        result += (T[0], T[-1])
+      Algo: essentially iterates through each point in the trajectory, checking if
+    """
 
-    return result
+    traj = [T[0], T[-1]]
 
+    for i in range(1, len(T) - 1):
+        dist = d(T[i], [T[0], T[-1]])
+
+        if dist > ep:
+            left_traj = greedy(T[:i + 1], ep)
+            right_traj = greedy(T[i:], ep)
+
+            count = len(traj)
+            traj = left_traj[:-1] + right_traj
+
+            break
+
+    return traj
 
 def make_dict(fname):
     T = {}
@@ -84,166 +97,76 @@ def make_dict(fname):
 
 
 def dtw(P, Q):
-    return 0
+    return
 
 
 def approach_2(points):
-    # Compute the length of the longest trajectory
-    # print(points)
-    max_len = max([len(point) for point in points])
-    # Initialize a matrix to store the points
-    coordinates = [[[0, 0] for _ in range(len(points))] for _ in range(
-        max_len)]
-    # Fill the matrix with the points from each trajectory
-    for i, point in enumerate(points):
-        for j, coordinate in enumerate(point):
-            coordinates[j][i] = coordinate
-    # Compute the average point for each time step
-    avg_points = [[sum(x) / len(x) for x in zip(*pt)] for pt in coordinates]
-    # Return the center trajectory as a sequence of points
-    # print(avg_points)
-    return avg_points
+    return
 
 
-def random_partition(trajectory_set, k):
-    # Create a randomized list of IDs based on the dictionary
-    ids = list(trajectory_set.keys())
-    random.shuffle(ids)
+def random_seeding(trajectories, k):
+    trajectory_ids = list(trajectories.keys())
+    random.shuffle(trajectory_ids)
 
-    # Create a dictionary. Keys are groups in range(0, k-1). Values are array of trajectory IDs
-    k_groups = {}
-    group_size = len(ids) // k
-    start = 0
-    end = group_size
-    for group_number in range(k):
-        if group_number not in k_groups:
-            k_groups[group_number] = []
-        for i in range(start, end):
-            k_groups[group_number].append(ids[i])
-        start = end + 1
-        if start + group_size > len(ids):
-            end = len(ids) - 1
+    groups = {}
+    size = len(trajectory_ids) // k
+    s = 0
+    e = size
+
+    for num in range(k):
+        if num not in groups:
+            groups[num] = []
+        for i in range(s, e):
+            groups[num].append(trajectory_ids[i])
+        s = e + 1
+        if len(trajectory_ids) < s + size:
+            e = len(trajectory_ids) - 1
         else:
-            end = start + group_size
+            e = s + size
 
-    return k_groups
-
+    return groups
+"""
 def closest_centroid(point, centroids):
-    distances = [euc_distance(point, centroid) for centroid in centroids]
+    distances = [euc_dist(point, centroid) for centroid in centroids]
     return distances.index(min(distances))
+"""
 
-
-#  trajectory_set --> a 2d array of trajectories
-#  k --> number of clusters
-#  max_iterations --> (t) max times the algorithm will run unless stopped before
-#  seed_type --> the type of seeding algorithm
-
-# TODO - we chose the kmeans++ algorithm. Implement it below:
-def new_seeding(trajectory_dict, k):
-    keys = list(trajectory_dict.keys())
-    centroids = [trajectory_dict[random.choice(keys)]]
+def proposed_seeding(trajectories, k):
+    trajectory_ids = list(trajectories.keys())
+    centroids = [trajectories[random.choice(trajectory_ids)]]
 
     for _ in range(k - 1):
-        distances = []
+        dists = []
 
-        for key in keys:
-            trajectory = trajectory_dict[key]
+        for id in trajectory_ids:
+            trajectory = trajectories[id]
 
             min_distance = float('inf')
-            for centroid in centroids:
-                for point in trajectory:
-                    distance = euc_distance(centroid, point)
-                    if distance < min_distance:
-                        min_distance = distance
+            for c in centroids:
+                for p in trajectory:
+                    euc_distance = euc_dist(c, p)
+                    if min_distance > euc_distance:
+                        min_distance = euc_distance
 
-            distances.append(min_distance)
+            dists.append(min_distance)
 
-        probabilities = [d ** 2 for d in distances]
-        probabilities_sum = sum(probabilities)
-        probabilities = [p / probabilities_sum for p in probabilities]
+        probs = [d ** 2 for d in dists]
+        probs_total = sum(probs)
+        new_probs = [p / probs_total for p in probs]
 
-        selected_key = random.choices(keys, weights=probabilities, k=1)[0]
-        centroids.append(trajectory_dict[selected_key])
+        chosen_id = random.choices(trajectory_ids, weights=new_probs, k=1)[0]
+        centroids.append(trajectories[chosen_id])
 
     return centroids
-"""
-def lloyds_algorithm(trajectory_set, k, max_iterations, seed_type):
-    # -------- 1. Partition T into k sets T1,...,Tk using the specified seed method.
 
-    # k_set_ids is a dictionary where the keys are the group #, and values are array of trajectory IDs
+
+def lloyds_algorithm(trajectories, k, max_iterations, seed):
     k_set_ids = {}
 
-    if (seed_type == 'r'):
-        k_set_ids = random_partition(trajectory_set, k)
-    else:
-        k_set_ids = new_seeding(trajectory_set, k)  # implement new seeding algo
-
-    # -------- 2. Repeat either a) until t is reached, or b) partitions remain the same before and after an iteration
-    for i in range(max_iterations):
-
-        # ------------ STEP 0: Remake k groups, used for comparison later ---------------
-        new_k_set = {}
-
-        # ------------ STEP 1: Center computations ---------------
-
-        # centers[0] stores the central trajectory of group 0 (with the actual points!!! not trajectory IDs)
-        centers = {}
-
-        # For each group #, compute the center
-        for group in range(0, k - 1):
-
-            k_group_trajectories = []  # 2d array of all trajectories in the group, each row is a trajectory
-
-            for each_id in k_set_ids[group]:
-                k_group_trajectories.append(trajectory_set[each_id])
-
-            centers[group] = find_center_t2(k_group_trajectories)  # add the center as a trajectory
-
-        # ------------ STEP 2: Reassignment ---------------
-        # for each trajectory in the whole set, reassign it to whichever center trajectory is closest
-        for traj_id in trajectory_set.keys():  # each row is a trajectory
-            min_dist = Integer.MAX_VALUE
-            min_center = 0  # the group in centers{} to choose
-            for center in centers.keys():  # loop through keys 0 through k-1
-                dist = distance(trajectory_set[traj_id], centers[center])  # input two trajectories with their points
-                if dist < min_dist:
-                    min_dist = dist
-                    min_center = center
-            # Now we have min_center! This is the group # (in range 0 to k-1) which this trajectory belongs to
-            # Add traj to group # min_center
-            if min_center not in new_k_set:
-                new_k_set[min_center] = []
-            new_k_set[min_center].append(traj_id)
-
-        # ------------ STEP 3: Repeat, unless... : ---------------
-        # Compare new_k_set and k_set_ids to see if anything changed
-        difference = False
-        for group in range(0, k - 1):
-            new_list = new_k_set[group].sort()
-            old_list = k_set_ids[group].sort()
-            if len(new_list) == len(old_list):
-                for i in range(0, len(new_list) - 1):  # is this the right range?
-                    if new_list[i] != old_list[i]:
-                        difference = True
-            else:
-                difference = True
-
-        if difference == False:
-            break
-"""
-
-#  trajectory_set --> a 2d array of trajectories
-#  k --> number of clusters
-#  max_iterations --> (t) max times the algorithm will run unless stopped before
-#  seed_type --> the type of seeding algorithm
-
-def lloyds_algorithm_v2(trajectory_set, k, max_iterations, seed_type):
-    k_set_ids = {}
-
-    if (seed_type == 'r'):
-        k_set_ids = random_partition(trajectory_set, k)
-    else:
-        k_set_ids = new_seeding(trajectory_set, k)
+    if (seed == "r"):
+        k_set_ids = random_seeding(trajectories, k)
+    elif (seed == "p"):
+        k_set_ids = proposed_seeding(trajectories, k)
 
     for i in range(max_iterations):
         new_k_set = {}
@@ -252,14 +175,14 @@ def lloyds_algorithm_v2(trajectory_set, k, max_iterations, seed_type):
         for group in range(0, k):
             k_group_trajectories = []
             for each_id in k_set_ids[group]:
-                k_group_trajectories.append(trajectory_set[each_id])
+                k_group_trajectories.append(trajectories[each_id])
             centers[group] = approach_2(k_group_trajectories)
 
-        for traj_id in trajectory_set.keys():
+        for traj_id in trajectories.keys():
             min_dist = float('inf')
             min_center = 0
             for center in centers.keys():
-                dist = dtw(trajectory_set[traj_id], centers[center])
+                dist = dtw(trajectories[traj_id], centers[center])
                 if dist < min_dist:
                     min_dist = dist
                     min_center = center
@@ -283,39 +206,111 @@ def lloyds_algorithm_v2(trajectory_set, k, max_iterations, seed_type):
 
     return k_set_ids, centers
 
-def approach_2(points):
-    # Compute the length of the longest trajectory
-    #print(points)
-    max_len = max([len(point) for point in points])
-    # Initialize a matrix to store the points
-    coordinates = [[[0, 0] for _ in range(len(points))] for _ in range(
-        max_len)]
-    # Fill the matrix with the points from each trajectory
-    for i, point in enumerate(points):
-        for j, coordinate in enumerate(point):
-            coordinates[j][i] = coordinate
-    # Compute the average point for each time step
-    avg_points = [[sum(x) / len(x) for x in zip(*pt)] for pt in coordinates]
-    # Return the center trajectory as a sequence of points
-    #print(avg_points)
-    return avg_points
-
 # Inputs are the same as Lloyd's algorithm
 def get_cost(trajectory_set, k, max_iterations, seed_type):
-    k_set_ids, centers = lloyds_algorithm_v2(trajectory_set, k, max_iterations, seed_type)
+    k_set_ids, centers = lloyds_algorithm(trajectory_set, k, max_iterations, seed_type)
 
     cost = 0
     for group in k_set_ids.keys():  # keys are the group numbers, values are array of trajectory IDs
         for traj_id in group:
-            cost = cost + distance(trajectory_set[traj_id], centers[group])
+            cost = cost + dist(trajectory_set[traj_id], centers[group])
     return cost
+
+def finding_costs_random():
+    max_iterations = 100
+    costs_random = {}
+    trajectories = make_dict("geolife-cars-upd8.csv")
+
+    costs_random_4 = []
+    for i in range(3):
+        costs_random_4.append(get_cost(trajectories, 4, max_iterations, 'r'))
+
+    costs_random[4]/(costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+
+    costs_random_6 = []
+    for i in range(3):
+        costs_random_6.append(get_cost(trajectories, 6, max_iterations, 'r'))
+
+    costs_random[6] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+
+    costs_random_8 = []
+    for i in range(3):
+        costs_random_8.append(get_cost(trajectories, 8, max_iterations, 'r'))
+
+    costs_random[8] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+
+    costs_random_10 = []
+    for i in range(3):
+        costs_random_10.append(get_cost(trajectories, 10, max_iterations, 'r'))
+
+    costs_random[10] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+
+    costs_random_12 = []
+    for i in range(3):
+        costs_random_12.append(get_cost(trajectories, 12, max_iterations, 'r'))
+
+    costs_random[12] / (costs_random_4[0] + costs_random_4[1] + costs_random_4[2]) / 3
+
+    return costs_random
+
+def finding_costs_proposed():
+    max_iterations = 100
+    costs_proposed = {}
+    trajectories = make_dict("geolife-cars-upd8.csv")
+
+    costs_proposed_4 = []
+    for i in range(3):
+        costs_proposed_4.append(get_cost(trajectories, 4, max_iterations, 'r'))
+
+    costs_proposed[4] / (costs_proposed_4[0] + costs_proposed_4[1] + costs_proposed_4[2]) / 3
+
+    costs_proposed_6 = []
+    for i in range(3):
+        costs_proposed_6.append(get_cost(trajectories, 6, max_iterations, 'r'))
+
+    costs_proposed[6] / (costs_proposed_6[0] + costs_proposed_6[1] + costs_proposed_6[2]) / 3
+
+    costs_proposed_8 = []
+    for i in range(3):
+        costs_proposed_8.append(get_cost(trajectories, 8, max_iterations, 'r'))
+
+    costs_proposed[8] / (costs_proposed_8[0] + costs_proposed_8[1] + costs_proposed_8[2]) / 3
+
+    costs_proposed_10 = []
+    for i in range(3):
+        costs_proposed_10.append(get_cost(trajectories, 10, max_iterations, 'r'))
+
+    costs_proposed[10] / (costs_proposed_10[0] + costs_proposed_10[1] + costs_proposed_10[2]) / 3
+
+    costs_proposed_12 = []
+    for i in range(3):
+        costs_proposed_12.append(get_cost(trajectories, 12, max_iterations, 'r'))
+
+    costs_proposed[12] / (costs_proposed_12[0] + costs_proposed_12[1] + costs_proposed_12[2]) / 3
+
+    return costs_proposed
+
+def plot_random(costs_random):
+    random_x = list(costs_random.keys())
+    random_y = list(costs_random.values())
+    plt.plot(random_x, random_y)
+    plt.xlabel('K Value')
+    plt.ylabel('Average Cost at K')
+    plt.title('Cost of Lloyds Algorithm with Random Seeding at Different Values of K')
+    plt.show()
+
+def plot_proposed(costs_proposed):
+    random_x = list(costs_proposed.keys())
+    random_y = list(costs_proposed.values())
+    plt.plot(random_x, random_y)
+    plt.xlabel('K Value')
+    plt.ylabel('Average Cost at K')
+    plt.title('Cost of Lloyds Algorithm with Updated Seeding at Different Values of K')
+    plt.show()
 
 
 if __name__ == '__main__':
-    pass
-    # print(data[:10])
-    # print(lloyds(data, k, 100))
     d = make_dict("geolife-cars-upd8.csv")
-    test2 = random_partition(d, 4)
+    test2 = random_seeding(d, 4)
     max_iterations = 100
     get_cost(test2, 4, max_iterations, 'r')
