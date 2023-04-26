@@ -392,18 +392,6 @@ def plot_iteration_cost_proposed():
     plt.title('Average Cost over Iterations for runs = 5')
     plt.show()
 
-def retrieve_centers(tracjectories, k,seed_type, max_iterations):
-    all_centers = []
-    trajectories = read_file('geolife-cars-upd8.csv')
-    clusters = lloyds(trajectories, k, seed_type, max_iterations)
-
-    for i in clusters.keys():
-        all_centers.append(center_computation(trajectories[i]))
-
-    print(len(clusters))
-
-    return all_centers
-
 
 if __name__ == '__main__':
     #plot_random(finding_random_seed_costs())
