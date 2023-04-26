@@ -1,6 +1,6 @@
 # CS 330: Case Study Part 2
 
-Authors: Nate Zelter, Lucas Josephy, Will Yun 
+Authors: Nate Zelter, Lucas Josephy, Will Yun, Rafael Adi 
 
 ## Task 4: Center Trajectories
 
@@ -53,6 +53,9 @@ the y-values of the center trajectory. The center trajectory is returned as a li
 
 #### Compilation Instructions
 
+- Run python3 task5.py when you are in the local directory.
+- Ensure that scipy is installed on your local host machine; if not, run pip3 install scipy.
+
 #### Execution Instructions 
 
 1. Install Python: This code is written in Python, so you'll need to have Python installed on your machine in order to 
@@ -77,3 +80,31 @@ close the windows to view the next histogram.
 
 
 #### Organization of Code
+
+- The code is implementing a clustering algorithm for trajectory data using both a random seeding method and a K-means++ algorithm. The trajectory data
+ is stored in a dictionary format, where the key represents the trajectory ID, and the value is a list of tuples, where 
+ each tuple represents a point in the trajectory (x, y) coordinates.
+
+The main function proposed_seed implements the K-means++ algorithm for clustering the trajectories, and it returns a 
+dictionary of dictionaries. The key of the outer dictionary represents the cluster ID (which is an index from 0 through k-1, and the value is another 
+dictionary, where the key is the trajectory ID, and the value is the list of points in that trajectory. The K-means++ 
+algorithm is implemented in two parts. The first part initializes the cluster centroids using a probabilistic method to 
+choose the initial centroids. The second part assigns the remaining trajectories to the nearest cluster based on the 
+distance to the centroids.
+
+The random_seeding function is an alternative method to initialize the centroids. It simply assigns each trajectory to a 
+random cluster centroid.
+
+The euclidean_distance function calculates the Euclidean distance between two points in 2D space.
+
+The dtw function implements the dynamic time warping (DTW) algorithm to calculate the distance between two trajectories. 
+The function returns the DTW distance and the optimal warping path between the two trajectories.
+
+The center_computation function computes the x-axis center of the trajectory data. It finds the minimum and maximum 
+x-axis values and returns the center of the interval between these two values.
+
+Lloyd's algorithm repeatedly calls the center computation method and then proceeds to re-assign each trajectory to the center
+it is the closest to. It repeats this until either the max iterations is reached, or the stop condition of the clusters being 
+the same before and after an iteration. 
+
+The cost function sums the difference of every trajectory and its center after lloyd's algorithm is finsihed running. 
