@@ -33,7 +33,7 @@ def xy_to_traj(x, y):
     return [(x[i], y[i]) for i in range(len(x))]
 
 
-def dtw_nate(P, Q):
+def dtw_new(P, Q):
     # Nate's version: O(n1 * n2)
     n1 = len(P)
     n2 = len(Q)
@@ -150,7 +150,7 @@ def center_trajectory_method_1(TS):
 
             T_literal = TS[T_id] 
             Tprime_literal = TS[Tprime_id]
-            delta, dtw_T_Tprime = dtw_nate(T_literal, Tprime_literal)
+            delta, dtw_T_Tprime = dtw_new(T_literal, Tprime_literal)
             s += delta
 
         if s < m: # ith sum is the less than current global minumum sum
@@ -160,21 +160,60 @@ def center_trajectory_method_1(TS):
                 temp.append((T_literal[i][0], Tprime_literal[j][1])) # construct trajectory from dtw path
             Tc = temp
 
-    return m, Tc
+    return Tc
+
+
+
+def center_trajectory_method_2(TS):
+
+    # -- gather x_min and x_max for linspace bounds
+    x_min, x_max = -math.inf, math.inf
+    for id in TS.keys():
+        if TS[id][-1][0] > x_min:
+            x_min = TS[id][-1][0]
+        if TS[id][0][0] < x_max:
+            x_max = TS[id][0][0]
+
+    print(x_min, x_max)
+
+    # -- make linspace for x axis
+    n_ticks = 100
+    x_ticks = np.linspace(x_min, x_max, n_ticks)   
+    y_values = np.zeros((len(TS), n_ticks))
+    for i, traj in enumerate(TS):
+        # Separate x and y values from the trajectory
+        x_vals = np.array([p[0] for p in TS[traj]])
+        y_vals = np.array([p[1] for p in TS[traj]])
         
+        # Use linear interpolation to find y values at the x ticks
+        interp_func = interp1d(x_vals, y_vals, kind='linear', fill_value='extrapolate')
+        y_values[i] = interp_func(x_ticks)
+    
+    # Average the y values across all trajectories at each x tick to construct the center trajectory
+    center_y = np.mean(y_values, axis=0)
+    # print(y_values)
+    
+    # Construct the center trajectory as a list of (x, y) coordinate tuples
+    center_traj = [(x_ticks[i], center_y[i]) for i in range(n_ticks)]
+
+    return center_traj
+
+
+    
 
 def main():
 
     # -- read in a data set from csv
-    filename = 'geolife-cars-ten-percent.csv'
+    filename = 'geolife-cars-upd8.csv'
+    # filename = 'geolife-cars-sixty-percent.csv'
     df = pd.read_csv(filename)
 
     # -- gather all trajectories in data set
-    df.sort_values(by=["id_", "date"], inplace=True)
+    # df.sort_values(by=["id_", "date"], inplace=True)
     trajectories = {}   
     for index, row in df.iterrows():
         id = row["id_"]
-        timestamp = row["date"] # not being used rn
+        # timestamp = row["date"] # not being used rn
         x = row["x"]
         y = row["y"]
         
@@ -190,55 +229,43 @@ def main():
     for id in trajectories.keys():
         if id in IDS:
             TS[id] = trajectories[id]
-    
-    # print(TS)
+
+    # print(TS.keys())
+
+    center_traj1 = center_trajectory_method_1(TS)
+    center_traj2 = center_trajectory_method_2(TS)
+    # print(center_traj2)
+
+    # print(center_traj1)
+    # print(center_traj2)
+
 
     # -- visualize trajectories
     fig, ax = plt.subplots()
+    # ax.plot(x_ticks, y_values[0], 'o', color='black', label="Linearly Interpolated Points")
+    # ax.plot(x_ticks, y_values[1], 'o', color='black')
     for id in TS.keys():
         ax.plot([p[0] for p in TS[id]], [p[1] for p in TS[id]], label=id)
-    ax.legend()
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_title("Trajectories for important IDs")
+    ax.set_title("Trajectory Centering Approaches I and II")
     # plt.show()
-
-    # -- gather x_min and x_max for linspace bounds
-    x_min, x_max = math.inf, -math.inf
-    for id in TS.keys():
-        for p in TS[id]:
-            if p[0] < x_min:
-                x_min = p[0]
-            if p[0] > x_max:
-                x_max = p[0]
-
-    print(x_min, x_max)
-    # -8.878138, 22.895032
-
-    # -- make linspace for x axis
-    n_ticks = 100
-    x_ticks = np.linspace(x_min, x_max, n_ticks)    
-    y_values = np.zeros((len(TS), n_ticks))
-    for i, traj in enumerate(TS):
-        # Separate x and y values from the trajectory
-        x_vals = np.array([p[0] for p in TS[traj]])
-        y_vals = np.array([p[1] for p in TS[traj]])
-        
-        # Use linear interpolation to find y values at the x ticks
-        interp_func = interp1d(x_vals, y_vals, kind='linear', fill_value='extrapolate')
-        y_values[i] = interp_func(x_ticks)
-    
-    # Average the y values across all trajectories at each x tick to construct the center trajectory
-    center_y = np.mean(y_values, axis=0)
-    
-    # Construct the center trajectory as a list of (x, y) coordinate tuples
-    center_traj = [(x_ticks[i], center_y[i]) for i in range(n_ticks)]
     
     # print(center_traj)
-    ax.plot([p[0] for p in center_traj], [p[1] for p in center_traj], linestyle='--', label='center_traj')
+    ax.plot([p[0] for p in center_traj1], [p[1] for p in center_traj1], linestyle='--', label='Approach I Center Trajectory')
+    ax.plot([p[0] for p in center_traj2], [p[1] for p in center_traj2], linestyle='--', label='Approach II Center Trajectory')
+    ax.legend()
+    ax.grid()
     plt.show()
+
+    for id in TS.keys():
+        dist, path = dtw_new(center_traj1, TS[id])
+        print(str(id) + " to Approach I Center Trajectory: " + str(dist))
+    for id in TS.keys():
+        dist, path = dtw_new(center_traj2, TS[id])
+        print(str(id) + " to Approach II Center Trajectory: " + str(dist))
 
 
 if __name__ == "__main__":
-    print("starting task4 (nate)...")
+    print("starting task4...")
     main()
