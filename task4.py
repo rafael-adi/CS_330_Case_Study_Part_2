@@ -1,124 +1,143 @@
-"""
-Task 4 for CS 330 Case Study
-task4.py
-
-April 2023
-NZ and LJ
-"""
-
-import math
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+import math
 
 
+IDS = ["115-20080527225031",
+        "115-20080528230807",
+        "115-20080618225237",
+        "115-20080624022857",
+        "115-20080626014331",
+        "115-20080626224815",
+        "115-20080701030733",
+        "115-20080701225507",
+        "115-20080702225600",
+        "115-20080706230401",
+        "115-20080707230001"]
 
-def centroid(trajectory, avg_distance=False):
-    trajectory = np.array(trajectory) # O(n)
-    centroid = trajectory.mean(axis=0) # O(n)
-    if avg_distance: # O(n^2)
-        distances = np.linalg.norm(trajectory - centroid, axis=1)
-        average_distance = np.mean(distances)
-        return centroid, average_distance
-    return centroid
+def dist(p1, p2):
+    # Compute the distance between two points
+    return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
 
+
+def traj_to_xy(trajectory):
+    x = [p[0] for p in trajectory]
+    y = [p[1] for p in trajectory]
+    return x, y
+
+
+def xy_to_traj(x, y):
+    assert len(x) == len(y)
+    return [(x[i], y[i]) for i in range(len(x))]
 
 def d(q, e):
-    # Compute the distance between a point q and a segment e
+  """
+    Compute the distance between a point q and a segment e
+  """
+  a = e[0]
+  b = e[1]
+  ax = a[0]
+  ay = a[1]
+  bx = b[0]
+  by = b[1]
+  qx = q[0]
+  qy = q[1]
 
-    a = e[0]
-    b = e[1]
-    ax = a[0]
-    ay = a[1]
-    bx = b[0]
-    by = b[1]
-    qx = q[0]
-    qy = q[1]
+  # vector ab
+  ab_x = bx - ax
+  ab_y = by - ay
 
-    # vector ab
-    ab_x = bx - ax
-    ab_y = by - ay
+  # vector aq
+  aq_x = qx - ax
+  aq_y = qy - ay
+  
+  # compute dot product of ab and aq
+  dp = (ab_x*aq_x) + (ab_y*aq_y)
+  abLen = abs(math.sqrt((ax-bx)**2 + (ay-by)**2))
+  q_to_AB = dp / (abLen**2)
+  
+  if (q_to_AB >= 1): # closest point is B
+    return abs(math.sqrt((qx-bx)**2 + (qy-by)**2)) 
 
-    # vector aq
-    aq_x = qx - ax
-    aq_y = qy - ay
-    
-    # compute dot product of ab and aq
-    dp = (ab_x*aq_x) + (ab_y*aq_y)
-    abLen = abs(math.sqrt((ax-bx)**2 + (ay-by)**2))
-    q_to_AB = dp / (abLen**2)
-    if (q_to_AB >= 1): # closest point is B
-        return abs(math.sqrt((qx-bx)**2 + (qy-by)**2)) 
-    elif (q_to_AB <= 0): # closest point is A
-        return abs(math.sqrt((qx-ax)**2 + (qy-ay)**2)) 
-    else: # closest point is in the middle of line segment e, let f be that point
-        fx = (ab_x*q_to_AB) + ax
-        fy = (ab_y*q_to_AB) + ay 
-        return abs(math.sqrt((qx-fx)**2 + (qy-fy)**2))
+  elif (q_to_AB <= 0): # closest point is A
+    return abs(math.sqrt((qx-ax)**2 + (qy-ay)**2)) 
+
+  else: # closest point is in the middle of line segment e, let f be that point
+    fx = (ab_x*q_to_AB) + ax
+    fy = (ab_y*q_to_AB) + ay 
+    return abs(math.sqrt((qx-fx)**2 + (qy-fy)**2))
+
+def greedy(T, ep):
+  """
+    Implement the greedy algorithm TS-greedy(T,ε) to compute an ε-simplification of T.
+
+    Algo: essentially iterates through each point in the trajectory, checking if  
+  """
+
+  traj = [T[0], T[-1]]
+
+  for i in range(1, len(T)-1):
+    dist = d(T[i], [T[0],T[-1]])
+
+    if dist > ep:
+        left_traj = greedy(T[:i+1], ep)
+        right_traj = greedy(T[i:], ep)
+
+        count = len(traj)
+        traj = left_traj[:-1] + right_traj
+
+        break
+
+  return traj
+
+def dtw_new(P, Q):
+    # Nate's version: O(n1 * n2)
+    n1 = len(P)
+    n2 = len(Q)
+    cost = np.zeros((n1, n2))
+    for i in range(n1):
+        for j in range(n2):
+            cost[i,j] = dist(P[i], Q[j])
+
+    # Compute the accumulated cost matrix
+    acc_cost = np.zeros((n1, n2))
+    acc_cost[0,0] = cost[0,0]
+    for i in range(1, n1):
+        acc_cost[i,0] = acc_cost[i-1,0] + cost[i,0]
+    for j in range(1, n2):
+        acc_cost[0,j] = acc_cost[0,j-1] + cost[0,j]
+    for i in range(1, n1):
+        for j in range(1, n2):
+            acc_cost[i,j] = cost[i,j] + min(acc_cost[i-1,j], acc_cost[i,j-1], acc_cost[i-1,j-1])
+
+    # Find the optimal warping path
+    path = []
+    i = n1 - 1
+    j = n2 - 1
+    path.append((i,j))
+    while i > 0 or j > 0:
+        if i == 0:
+            j -= 1
+        elif j == 0:
+            i -= 1
+        else:
+            if acc_cost[i-1,j] == min(acc_cost[i-1,j-1], acc_cost[i-1,j], acc_cost[i,j-1]):
+                i -= 1
+            elif acc_cost[i,j-1] == min(acc_cost[i-1,j-1], acc_cost[i-1,j], acc_cost[i,j-1]):
+                j -= 1
+            else:
+                i -= 1
+                j -= 1
+        path.append((i,j))
+    path.reverse()
+    dtw_distance = acc_cost[n1-1,n2-1]
+
+    return dtw_distance, path
 
 
-def greedy(T, ep=0.3):
-    # Implement the greedy algorithm TS-greedy(T,ε) to compute an ε-simplification of T.
-
-    traj = [T[0], T[-1]]
-    for i in range(1, len(T)-1):
-        dist = d(T[i], [T[0],T[-1]])
-        if dist > ep:
-            left_traj = greedy(T[:i+1], ep)
-            right_traj = greedy(T[i:], ep)
-            traj = left_traj[:-1] + right_traj
-            break
-    return traj
-
-
-
-
-def ct_method_1(TS):
-    ids = list(TS.keys())
-
-    m = math.inf
-    Tc_id = ''
-    for T_id in ids:
-        s = 0
-
-        for Tprime_id in ids:
-            if Tprime_id == T_id:
-                continue
-
-            T_literal = TS[T_id]
-            Tprime_literal = TS[Tprime_id]
-            dtw_T_Tprime = dtw(T_literal, Tprime_literal)
-            s += len(dtw_T_Tprime) #! this is boof
-
-        if s < m: # ith sum is the less than current global minumum sum
-            m = s
-            Tc_id = Tprime_id
-
-
-
-
-def ct_method_2(TS):
-
-    """
-    Find the centroid for each trajectory T in TS
-    Construct new trajectory from list of centroids
-    Return centroid of constructed trajectory
-    """
-                # P_array = np.array(P)
-                # c_P = P_array.mean(axis=0)
-
-    ids = list(TS.keys())
-
-    
-
-    centroids = []
-    for T_id in ids:
-        T_literal = TS[T_id]
-        centroids.append(centroid(T_literal))
-    Tc = centroid(centroids)
-
-
-def dtw(P, Q):
+def dtw_raf(P, Q):
     """Algorithm to find dtw and Eavg assignment; returns an array"""
 
     lenP = len(P)
@@ -169,150 +188,146 @@ def dtw(P, Q):
             j -= 1
     return Eavg[::-1]
 
-def fd(P, Q):
-    lenP = len(P)
-    lenQ = len(Q)
 
-    #Initializing first dp table for maxes
-    dp = [[math.inf] * (lenQ+1) for _ in range(lenP+1)]
-    dp[0][0] = 0
 
-    #Creating the table that will be used to find path later
-    for i in range(1, lenP+1):
-        for j in range(1, lenQ+1):
-            distance = math.dist(P[i - 1], Q[j - 1])
-            temp1 = dp[i-1][j-1]
-            temp2 = dp[i - 1][j]
-            temp3 = dp[i][j-1]
-            mintemp = min(temp1, temp2, temp3)
-            dp[i][j] = max(distance, mintemp)
+def center_trajectory_method_1(TS):
+    """
+    computes center trajectory over a trajectory set TS
+    _id = trajectory id, a string
+    _literal = trajectory literal, a list of xy points as tuples
+    """
 
-    #Initializing Emax array for indices
-    Emax = []
+    ids = list(TS.keys())
+    m = math.inf
+    Tc = ''
 
-    i = lenP
-    j = lenQ
+    for T_id in ids:
+        s = 0
+        for Tprime_id in ids: 
+            if Tprime_id == T_id: # skip if same trajectory
+                continue
 
-    # Reverse looping over dp to add indices to Emax array (starting from bottom right corner)
-    while i > 0 and j > 0:
-        temp1 = dp[i - 1][j - 1]
-        temp2 = dp[i - 1][j]
-        temp3 = dp[i][j - 1]
-        mintemp = min(temp1, temp2, temp3)
-        if dp[i-1][j] == mintemp:
-            Emax.append([i - 1, j])
-            i -= 1
-        elif dp[i-1][j-1] == mintemp:
-            Emax.append([i - 1, j-1])
-            i -= 1
-            j -= 1
-        else:
-            Emax.append([i, j - 1])
-            j -= 1
-    return Emax[::-1]
+            T_literal = TS[T_id] 
+            Tprime_literal = TS[Tprime_id]
+            delta, dtw_T_Tprime = dtw_new(T_literal, Tprime_literal)
+            s += delta
 
+        if s < m: # ith sum is the less than current global minumum sum
+            m = s
+            temp = []
+            for i, j in dtw_T_Tprime:
+                temp.append((T_literal[i][0], Tprime_literal[j][1])) # construct trajectory from dtw path
+            Tc = temp
+
+    return Tc
+
+
+
+def center_trajectory_method_2(TS):
+
+    # -- gather x_min and x_max for linspace bounds
+    x_min, x_max = -math.inf, math.inf
+    for id in TS.keys():
+        if TS[id][-1][0] > x_min:
+            x_min = TS[id][-1][0]
+        if TS[id][0][0] < x_max:
+            x_max = TS[id][0][0]
+
+    print(x_min, x_max)
+
+    # -- make linspace for x axis
+    n_ticks = 100
+    x_ticks = np.linspace(x_min, x_max, n_ticks)   
+    y_values = np.zeros((len(TS), n_ticks))
+    for i, traj in enumerate(TS):
+        # Separate x and y values from the trajectory
+        x_vals = np.array([p[0] for p in TS[traj]])
+        y_vals = np.array([p[1] for p in TS[traj]])
+        
+        # Use linear interpolation to find y values at the x ticks
+        interp_func = interp1d(x_vals, y_vals, kind='linear', fill_value='extrapolate')
+        y_values[i] = interp_func(x_ticks)
+    
+    # Average the y values across all trajectories at each x tick to construct the center trajectory
+    center_y = np.mean(y_values, axis=0)
+    # print(y_values)
+    
+    # Construct the center trajectory as a list of (x, y) coordinate tuples
+    center_traj = [(x_ticks[i], center_y[i]) for i in range(n_ticks)]
+
+    return center_traj
+
+
+    
 
 def main():
-    print("Hello world, task 4 here we go...")
 
     # -- read in a data set from csv
-    filename = 'geolife-cars-ten-percent.csv'
+    filename = 'geolife-cars-upd8.csv'
+    # filename = 'geolife-cars-sixty-percent.csv'
     df = pd.read_csv(filename)
 
-    # -- gather trajectories
-    df.sort_values(by=["id_", "date"], inplace=True)
+    # -- gather all trajectories in data set
+    # df.sort_values(by=["id_", "date"], inplace=True)
     trajectories = {}   
     for index, row in df.iterrows():
         id = row["id_"]
-        timestamp = row["date"]
+        # timestamp = row["date"] # not being used rn
         x = row["x"]
         y = row["y"]
         
         if id not in trajectories:
             trajectories[id] = []
         
-        trajectories[id].append((x, y, timestamp))
-        # trajectories[id_].append({"x": x, "y": y, "timestamp": timestamp})
-
-    # -- print some stuff
-    n = len(trajectories) # number of trajectories in Trajectory Set
-    print(f"Number of trajectories in Trajectory Set: {n}\n")
-    ids = list(trajectories.keys())
-    # print(f"IDs of trajectories in Trajectory Set: {ids}\n") #926 ids for 10% of data
-
-    id_P, id_Q, id_R = ids[0], ids[1], ids[2]
-    # P, Q, R = trajectories[id_P], trajectories[id_Q], trajectories[id_R]
-    P = [(p[0], p[1]) for p in trajectories[id_P]]
-    Q = [(q[0], q[1]) for q in trajectories[id_Q]]
-    R = [(r[0], r[1]) for r in trajectories[id_R]]
-
-    print(f"Trajectory P of length {len(P)}: {P}\n") #52 points for ids[0]
-    print(f"Trajectory Q of length {len(Q)}: {Q}\n") #192 points for ids[1]
-    print(f"Trajectory R of length {len(R)}: {R}\n") #53 points for ids[2]
-
-    # -- test distance for P and Q
-    # dist_PQ = dtw(P, Q)
-    # # print(f"DTW distance between P and Q: {dist_PQ}\n") # len is 192
-
-    # # -- test distance for P and R
-    # dist_PR = dtw(P, R)
-    # # print(f"DTW distance between P and R: {dist_PR}\n") # len is 53
-
-    # # -- test distance for Q and R
-    # dist_QR = dtw(Q, R)
-    # # print(f"DTW distance between Q and R: {dist_QR}\n") # len is 53 
+        # trajectories[id].append((x, y, timestamp)) # with timestamps
+        trajectories[id].append((x, y)) # without timestamps
 
 
-    # -- strip timestmaps from trajectories
-    TS = {} # this is fancy T
-    for id in ids:
-        traj = trajectories[id]
-        T = [(p[0], p[1]) for p in traj]
-        TS[id] = T
+    # -- gather important trajectory ids
+    TS = {}
+    for id in trajectories.keys():
+        if id in IDS:
+            TS[id] = greedy(trajectories[id], 0.3)
 
-    # -- trajectory simplification!!! 
-    # todo for part 2
+    # print(TS.keys())
 
-    # -- implement distance function delta(T, T')
-    P, Q, R = TS[id_P], TS[id_Q], TS[id_R]
-    # print(f"Trajectory P of length {len(P)}: {P}\n") #52
-    # print(f"Trajectory Q of length {len(Q)}: {Q}\n") #192
-    # print(f"Trajectory R of length {len(R)}: {R}\n") #53
+    center_traj1 = center_trajectory_method_1(TS)
+    # center_traj2 = center_trajectory_method_2(TS)
+    # print(center_traj2)
 
-    ### Method 2:
-    """
-    Find the centroid for each trajectory T in TS
-    Construct new trajectory from list of centroids
-    Return centroid of constructed trajectory
-    """
-    centroids = []
-    for T_id in ids:
-        T_literal = TS[T_id]
-        centroids.append(centroid(T_literal))
-    Tc = centroid(centroids)
-    print(f"Centroid of Tc: {Tc}\n")
-
-    # SANITY CHECK
-  
-
-                # P_array = np.array(P)
-                # c_P = P_array.mean(axis=0)
-                # fig, ax = plt.subplots()
-                # ax.plot(P_array[:, 0], P_array[:, 1], label="P")
-                # ax.scatter(c_P[0], c_P[1], c="red", label="c_P")
-                # ax.legend()
-                # ax.set_xlabel("X")
-                # ax.set_ylabel("Y")
-                # ax.set_title("Trajectory P with Centroid c_P")
-                # plt.show()
+    # print(center_traj1)
+    # print(center_traj2)
 
 
-
-
-    # -- find center trajecctory using Method 1 
-    # result_1 = ct_method_1(TS)
-
+    # -- visualize trajectories
+    fig, ax = plt.subplots()
+    # ax.plot(x_ticks, y_values[0], 'o', color='black', label="Linearly Interpolated Points")
+    # ax.plot(x_ticks, y_values[1], 'o', color='black')
+    for id in TS.keys():
+        ax.plot([p[0] for p in TS[id]], [p[1] for p in TS[id]], label=id)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_title("Trajectory Centering Approach I with Trajectory Simplification (ep = 0.3)")
+    # plt.show()
     
+    # print(center_traj)
+    ax.plot([p[0] for p in center_traj1], [p[1] for p in center_traj1], linestyle='--', label='Approach I Center Trajectory')
+    # ax.plot([p[0] for p in center_traj2], [p[1] for p in center_traj2], linestyle='--', label='Approach II Center Trajectory')
+    ax.legend()
+    ax.grid()
+    plt.show()
 
-if __name__ == '__main__':
+    tot = 0
+    for id in TS.keys():
+        dist, path = dtw_new(center_traj1, TS[id])
+        tot = tot + dist
+    avg = tot / 11
+    print("Average Distance: " + str(avg))
+    # for id in TS.keys():
+    #     dist, path = dtw_new(center_traj2, TS[id])
+    #     print(str(id) + " to Approach II Center Trajectory: " + str(dist))
+
+
+if __name__ == "__main__":
+    print("starting task4...")
     main()
